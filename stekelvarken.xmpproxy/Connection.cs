@@ -20,6 +20,7 @@ namespace stekelvarken.xmpproxy
         protected TcpListener _tcpListener;
         protected myList<byte> _incomingMessages = new myList<byte>();
         protected Mutex _messagesMutex = new Mutex();
+        protected X509Certificate _cert;
 
         public Connection()
         {
@@ -120,38 +121,49 @@ namespace stekelvarken.xmpproxy
 
         public void StartTls()
         {
-            if (_networkStream == null)
-            {
-                _networkStream = new NetworkStream(_socket);
-            }
-
             if (_sslStream != null)
             {
                 throw new Exception("m_sslStream is already allocated");
             }
 
-            _sslStream = new SslStream(_networkStream, false);
             if (_host.Length > 0)
             {
+                _sslStream = new SslStream(_networkStream, false);
                 _sslStream.AuthenticateAsClient(_host, new X509CertificateCollection(), SslProtocols.Tls, false);
             }
             else
             {
-                   
+                //_cert = new X509Certificate2(@"C:\dl\sw\testcert.pfx", "mypassword");
+                //X509Store store = new X509Store(StoreLocation.LocalMachine);
+                //store.Open(OpenFlags.ReadOnly);
+                //X509Certificate2Collection coll = new X509Certificate2Collection();
 
-                X509Certificate cert = new X509Certificate2(@"C:\dl\sw\stekelvarken.xmpproxy\testcert.pfx", "mypassword");
-                _sslStream.AuthenticateAsServer(cert, false, SslProtocols.Tls, false);
+                //_cert = store.Certificates[2];
+                _cert = X509Certificate.CreateFromCertFile(@"C:\dl\sw\teamlab.cer");
+
+                _sslStream = new SslStream(_networkStream, false, ValidateServerCertificate, ChooseClientCertificate);
+
+                _sslStream.AuthenticateAsServer(_cert, false, SslProtocols.Tls, false);
             }
             _bUseTls = true;
         }
 
-        static X509Certificate CertificateSelectionCallback(object sender,
+        protected bool ValidateServerCertificate(object sender,
+                                         X509Certificate certificate,
+                                         X509Chain chain,
+                                         SslPolicyErrors sslPolicyErrors)
+        {
+            return true;
+        }
+
+        protected X509Certificate ChooseClientCertificate(object sender,
             string targetHost,
             X509CertificateCollection localCertificates,
             X509Certificate remoteCertificate,
             string[] acceptableIssuers)
         {
-            return localCertificates[0];
+            //_cert = new X509Certificate2(@"C:\dl\sw\testcert.pfx", "mypassword");
+            return _cert;
         }
     }
 }
